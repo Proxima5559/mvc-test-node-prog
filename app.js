@@ -4,7 +4,7 @@ const routes = require('./router');
 require('dotenv').config();
 
 app.use(express.json());
-app.use("/api", routes);
+app.use("/V1", routes);
 
 const port = process.env.PORT;
 app.listen(port, () => {

@@ -1,67 +1,69 @@
 const model = require('./model');
 
 class Controller {
-    static async create(req, res) {
+    static async insert(req, res) {
         try {
-            const data = req.body;
-            const result = await model.create(data);
-            res.status(201).json(result);
-        } catch (err) {
-            res.status(500).json({ error: 'Internal Server Error' });
+            const users = req.body;
+            if (!users || !Array.isArray(users)) {
+                return res.status(400).json({ message: "To remind me, if there is no valid users array provided" });
+            }
+
+            let result = {};
+            let userSet = new Set();
+
+            for (let item of users) {
+                userSet.add(item.name);
+            }
+
+            for (let name of userSet) {
+                const userRecords = users.filter((x) => x.name === name);
+                const totalDays = userRecords.length;
+                const presentDays = userRecords.filter((x) => x.present === true).length;
+
+                result[name] = {
+                    totalDays: totalDays,
+                    presentDays: presentDays,
+                    attendancePercentage: totalDays > 0 ? Math.round((presentDays / totalDays) * 100) : 0
+                };
+            }
+
+            await model.insert(result);
+            return res.status(200).json({ message: "Data inserted successfully", data: result });
+
+        } catch (error) {
+            console.error("Error in insert:", error);
+            return res.status(500).json({ message: "Internal server error" });
         }
     }
 
-    static async cut(req, res) {
+    static async getAll(req, res) {
+
         try {
-            const requestedMeters = Number(req.body.meters);
+            const result = await model.getAll();
 
-            const result = await model.cut(requestedMeters);
-
-            res.status(200).json(result);
-        } catch (err) {
-            if (err.message === "NO_RIBBON") {
-                return res.status(400).json({ error: "No ribbon" });
-            }
-            if (err.message === "NOT_INITIALIZED") {
-                return res.status(404).json({ error: "Ribbon stock has not been created yet" });
+            if (!result) {
+                return res.status(200).json({ attendanceReport: [], message: "To remind me, if there is no attendance data found" });
             }
 
-            res.status(500).json({ error: 'Internal Server Error' });
-        }
-    }
-    static async incrementPrice(req, res) {
-        try {
-            const amount = Number(req.query.amount);
+            let attendanceReport = [];
 
-            const result = await model.incrementPrice(amount);
-            res.status(200).json(result);
-        } catch (err) {
-            res.status(500).json({ error: 'Internal Server Error' });
-        }
-    }
+            for (let name in result) {
+                const percentage = result[name].attendancePercentage;
 
-    static async decrementPrice(req, res) {
-        try {
-            const amount = Number(req.query.amount);
+                const status = percentage >= 90 ? "Excellent" : "At Risk";
 
-            const result = await model.decrementPrice(amount);
-            res.status(200).json(result);
-        } catch (err) {
-            if (err.message === "PRICE_TOO_LOW") {
-                return res.status(400).json({ error: "Price cannot be negative" });
+                attendanceReport.push({
+                    name: name,
+                    attendancePercentage: percentage,
+                    status: status
+                });
             }
-            res.status(500).json({ error: 'Internal Server Error' });
-        }
-    }
-    static async getTotalPrice(req, res) {
-        try {
-            const result = await model.getTotalPrice();
-            return res.status(200).json(result);
-        } catch (err) {
-            if (err.message === "NOT_INITIALIZED") {
-                return res.status(404).json({ error: "Ribbon stock has not been created yet" });
-            }
-            return res.status(500).json({ error: 'Internal Server Error' });
+
+            return res.status(200).json({ attendanceReport });
+
+        } catch (error) {
+            console.error("Error in getAll:", error);
+            return res.status(500).json({ message: "Internal server error" });
         }
     }
 }
