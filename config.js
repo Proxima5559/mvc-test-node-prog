@@ -1,17 +1,12 @@
-const Redis = require('ioredis');
-const redis = new Redis({
-  host: process.env.DB_HOST,
-  port: process.env.DB_PORT,
-});
+require('dotenv').config(); 
+const mongoose = require('mongoose');
 
-redis.on('connect', () => {
-  console.log('Redis connected successfully');
-});
-
-redis.on('error', (err) => {
-  console.error('Redis error:', err);
-});
-
-module.exports = {
-  redis,
-};
+const connectDB = async () => {
+  try {
+    await mongoose.connect(process.env.MONGODB_URI);
+    console.log('MongoDB connected successfully');
+  } catch (error) {
+    console.error('MongoDB connection error:', error);
+  }
+}
+module.exports = connectDB;
